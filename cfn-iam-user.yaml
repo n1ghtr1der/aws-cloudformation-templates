@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Simple template to create a IAM User and shows its access keys on output tab.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "IAM User Params"
+      Parameters:
+        - UserName
+        - ManagedPolicyArns
+        - Group
+        - Password
+        - PasswordRequired
+
+Parameters: 
+  UserName:
+    Description: Insert the IAM username.
+    Type: String
+    AllowedPattern: ^[\w+=,.@-]{1,64}$
+    ConstraintDescription: Enter a valid name
+    Default: "None"
+
+  Group:
+    Description: Enter the user group name(optional).
+    Type: String
+    Default: "None"
+
+  ManagedPolicyArns:
+    Description: Add a predefined Managed Policy to the user(optional).
+    Type: String
+    AllowedValues:
+    - Administrator
+    - View-Only
+    - None
+    Default: None
+
+  Password:
+    Type: String
+    Description: Enter a password
+    ConstraintDescription: Password between 8 and 32 characters, have at least one special character, one number and a capital letter.
+    NoEcho: true
+    AllowedPattern: ^(?=.*[0-9])(?=.*[!@#$%^&*()-_+=])[A-Za-z0-9!@#$%^&*()-_+=]{8,32}$
+
+  PasswordRequired:
+    Description: The user needs to create a new password on first access?
+    Type: String
+    AllowedValues:
+    - "true"
+    - "false"
+
+Mappings:
+  ManagedPolicyArns:
+    Administrator:
+      ARN: arn:aws:iam::aws:policy/AdministratorAccess
+      GroupRole: AdministratorAccess
+    View-Only:
+      ARN: arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
+      GroupRole: ViewOnlyAccess
+    None:
+      ARN: arn:aws:iam::aws:policy/NoAccess
+      GroupRole: NoAccess
+
+Conditions:
+  hasManagedPolicy:
+    !Not [!Equals [!Ref ManagedPolicyArns, "None"]]
+  
+  hasUserName:
+    !Not [!Equals [!Ref UserName, "None"]]
+  
+  hasGroup:
+    !Not [!Equals [!Ref Group, "None"]]
+
+
+Resources:
+  IamUser:
+    Type: AWS::IAM::User
+    Properties:
+      Groups: 
+        - !If [hasGroup, !Ref Group, !Ref "AWS::NoValue"]
+      UserName: !If [hasUserName, !Ref UserName, !Ref "AWS::NoValue"]
+      LoginProfile:
+        Password: !Ref Password
+        PasswordResetRequired: !Ref PasswordRequired
+      ManagedPolicyArns:
+        - !If [hasManagedPolicy, !FindInMap [ManagedPolicyArns, !Ref ManagedPolicyArns, ARN], !Ref "AWS::NoValue"]
+        - arn:aws:iam::aws:policy/IAMUserChangePassword
+
+  IamAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref IamUser
+Outputs:
+  User:
+    Description: IAM username
+    Value: !Ref IamUser
+  UserArn:
+    Description: ARN associated with the IAM User account
+    Value: !GetAtt IamUser.Arn
+  AccessKeyId:
+    Description: Access Key Id
+    Value: !Ref IamAccessKey
+  AccessKeySecret:
+    Description: Access Key Secret
+    Value: !GetAtt IamAccessKey.SecretAccessKey
