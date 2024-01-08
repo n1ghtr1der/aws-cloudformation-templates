@@ -1,0 +1,20 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: This template creates a cloudwatch alarm for sqs queues
+
+Resources:
+  GenKeywordsTest:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmName: Alert-SQS-generate-keywords-test
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: #sqs queue name
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 100
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - #sns topic arn

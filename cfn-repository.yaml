@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template creates a private ECR Repository
+
+Parameters:
+  Name:
+    Description: Type de registry name
+    Type: String
+    Default: custom-ecr
+
+Resources:
+  EcrRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref Name
+      ImageTagMutability: MUTABLE
+      ImageScanningConfiguration:
+        ScanOnPush: false
+
+Outputs:
+  RepoUri:
+    Description: Repository URI
+    Value: !GetAtt EcrRepo.RepositoryUri

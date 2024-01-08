@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template creates a Autoscalling Group and a EC2 Launch Template to attach to it 
+Metadata: 
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Launch Template Settings"
+        Parameters:
+          - TemplateName
+          - KeyName
+          - InstanceType
+          - VolumeSize
+          - SecurityGroup
+          - InstancesName
+      
+      - Label:
+          default: "AutoScaling Group Settings"
+        Parameters:
+          - MaxSize
+          - MinSize
+          - DesiredCapacity
+      
+Parameters:
+  TemplateName:
+    Description: Type the Launch Template name
+    Type: String
+    Default: ec2-launchtemplate
+  
+  KeyName:
+    Description: Select the key pair
+    Type: AWS::EC2::KeyPair::KeyName
+
+  MaxSize:
+    Description: Type the Autoscaling max size
+    Type: Number
+  
+  MinSize:
+    Description: Type the Autoscaling min size
+    Type: Number
+  
+  DesiredCapacity:
+    Description: Type the Autoscaling desired capacity
+    Type: Number
+
+  InstanceType:
+    Description: Choose the instance type
+    Type: String
+    AllowedValues:
+      - t2.micro
+      - t3a.large
+      - t3a.medium
+      - t2.medium
+      - t2.small
+  
+  VolumeSize:
+    Description: Volume size
+    Type: Number
+    Default: 8
+  
+  SecurityGroup:
+    Description: Choose the security group
+    Type: AWS::EC2::SecurityGroup::Id
+
+  InstancesName:
+    Description: Type the instances name
+    Type: String
+
+Resources:
+  Ec2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Ref TemplateName
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - Ebs:
+              VolumeSize: !Ref VolumeSize
+              VolumeType: gp3
+              DeleteOnTermination: true
+              Encrypted: false
+            DeviceName: /dev/sda1 # this device name works only for ubuntu AMI's, you should search for other AMI's device names to avoid problems with your storage
+        ImageId: ami-024e6efaf93d85776
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyName
+        SecurityGroupIds: !Ref SecurityGroup
+
+  Ec2Autoscaling:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Ec2LaunchTemplate
+        Version: !GetAtt Ec2LaunchTemplate.LatestVersionNumber
+      MaxSize: !Ref MaxSize
+      MinSize: !Ref MinSize
+      DesiredCapacity: !Ref DesiredCapacitysubnet-0075df614df5d9d99
+        - subnet-0ed4bbc046e29491b
+        - subnet-02218dbc8bd982aa1
+        - subnet-0ee849427c5ea331e
+        - subnet-00dc49560874aa8c6
+        - subnet-0f2aa0c4a60d7a07c
+      VPCZoneIdentifier:
+        - #subnet id 1
+        - #subnet id 2
+      Tags:
+        - Key: Name
+          Value: !Ref InstancesName
+          PropagateAtLaunch: true
+
+Outputs:
+  LaunchTemplateID:
+    Description: Launch Template Id
+    Value: !Ref Ec2LaunchTemplate
+  
+  AutoScalingID:
+    Description: AutoScaling ID
+    Value: !Ref Ec2Autoscaling

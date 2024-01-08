@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+  RDSName:
+    Description: "Database Name"
+    Type: String
+  Username:
+    Description: "Database master username"
+    Type: String
+  UserPassword:
+    NoEcho: true
+    MaxLength: 8
+    Description: "Master user password"
+    Type: String
+  Engines:
+    Type: String
+    Default: MySQL
+    AllowedValues:
+      - MySQL
+      - PostgreSQL
+      - MariaDB
+  InstanceType:
+    Type: String
+    Default: db.t2.micro
+    AllowedValues:
+    - db.t2.micro
+    - db.t3.micro
+    - db.t4g.micro
+  StorageType:
+    Type: String
+    Default: gp2
+    AllowedValues:
+      - gp2
+      - gp3
+  AllocatedStorage:
+    Description: "Minimun: 1 Maximun: 20"
+    MinValue: 1
+    MaxValue: 20
+    Type: Number
+
+Resources:
+  DataBaseInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: !Ref RDSName
+      MasterUsername: !Ref Username
+      MasterUserPassword: !Ref UserPassword
+      Engine: !Ref Engines
+      DBInstanceClass: db.t2.micro
+      StorageType: !Ref StorageType
+      PubliclyAccessible: True
+      AllocatedStorage: !Ref AllocatedStorage
+      DBInstaceIdentifier: !Join ["-", ["DBInstance", !Ref "AWS::Region"]]
+      AvailabilityZone: us-east-2a

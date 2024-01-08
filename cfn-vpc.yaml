@@ -1,0 +1,144 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Stack template to create a VPC in the network 10.0.0.0/16, a security group and two public subnets on us-east-2
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "Network Configuration"
+      Parameters:
+        - VpcName
+        - InternetGatewayName
+    
+    ParameterLabels:
+      VpcName:
+        default: "VPC Name"
+      InternetGatewayName:
+        default: "Internet Gateway name"
+
+Parameters: 
+  VpcName:
+    Description: Type the VPC name
+    Type: String
+    Default: Custom VPC
+
+  InternetGatewayName:
+    Description: Type the Internet Gateway name
+    Type: String
+    Default: Custom IGW
+
+Resources: 
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+  
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      AvailabilityZone: us-east-2a
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-us-east-2a
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      AvailabilityZone: us-east-2b
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-us-east-2b
+  
+  PublicSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      AvailabilityZone: us-east-2c
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-us-east-2c
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Public Route Table
+  
+  PublicRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+  
+  PublicRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+  PublicRouteTableAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet3
+
+  RouteTablePublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref PublicRouteTable
+      GatewayId: !Ref IGW
+  
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref InternetGatewayName
+        VpcSecurityGroup:
+        default: "VPC Security Group name"
+      ElbSecurityGroup:
+        default: "Load Balancer Security Group name"
+  IgwAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref IGW
+ 
+ Outputs:
+  StackVPC:
+    Description: Vpc ID
+    Value: !Ref VPC
+  InternetGW:
+    Description: Information about the internet gateway
+    Value: !Ref IGW
+  AttachGW:
+    Description: Information about the value attach gateway
+    Value: !Ref IgwAttachment
+
+  SubnetId1:
+    Description: Subnet 1 ID
+    Value: !GetAtt PublicSubnet1.SubnetId
+
+  SubnetId2:
+    Description: Subnet 2 ID
+    Value: !GetAtt PublicSubnet2.SubnetId
+  
+  SubnetId3:
+    Description: Subnet 3 ID
+    Value: !GetAtt PublicSubnet3.SubnetId

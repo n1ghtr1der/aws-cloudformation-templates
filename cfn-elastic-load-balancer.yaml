@@ -1,0 +1,184 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to create a stack with one elastic load balancer with 2 ec2 instances associated to it
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "EC2 Configuration"
+      Parameters:
+        - KeyName
+        - InstanceSecurityGroup
+    - Label:
+        default: "Load Balancer Configuration"
+      Parameters:
+        - LoadBalancerName
+        - LoadBalancerVPC
+        - ELBSecurityGroup
+    - Label:
+        default: "First Instance Configuration"
+      Parameters:
+        - FirstInstanceName
+        - FirstInstanceSubnet
+    - Label:
+        default: "Second Instance Configuration"
+      Parameters:
+        - SecondInstanceName
+        - SecondInstanceSubnet
+
+Parameters:
+  KeyName:
+    Description: Choose your key pair
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: default-key
+  
+  InstanceSecurityGroup:
+    Description: Select the instances security group
+    Type: AWS::EC2::SecurityGroup::Id
+    Default: sg-0e0b5a900ea6e2cf8
+  
+  ELBSecurityGroup:
+    Description: Select the load balancer security group
+    Type: AWS::EC2::SecurityGroup::Id
+    Default: sg-0e0b5a900ea6e2cf8
+  
+  FirstInstanceName:
+    Description: Type the first instance name
+    Type: String
+    Default: EC2 One
+  
+  SecondInstanceName:
+    Description: Type the second instance name
+    Type: String
+    Default: EC2 Two
+  
+  FirstInstanceSubnet:
+    Description: Select the first instance subnet
+    Type: AWS::EC2::Subnet::Id
+    Default: subnet-0b1470e176bb36e8c
+
+
+  SecondInstanceSubnet:
+    Description: Select the second instance subnet
+    Type: AWS::EC2::Subnet::Id
+    Default: subnet-07a203722f7241ae5
+  
+  LoadBalancerVPC:
+    Description: Select the load balancer vpc
+    Type: AWS::EC2::VPC::Id
+    Default: vpc-0669654ebe54f9f57
+  
+  LoadBalancerName:
+    Description: Type the Load Balancer name
+    Type: String
+    Default: custom-load-balancer
+
+Resources:
+  FirstEc2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: us-east-2a
+      KeyName: !Ref KeyName
+      ImageId: ami-0ccabb5f82d4c9af5
+      InstanceType: t2.micro
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: 'true'
+          DeviceIndex: '0'
+          GroupSet: 
+            - !Ref InstanceSecurityGroup
+          SubnetId: !Ref FirstInstanceSubnet
+      UserData: !Base64 |
+        #!/bin/bash -ex
+        yum update -y
+        yum install -y httpd
+        systemctl start httpd
+        systemctl enable httpd
+        echo "<h1>Instância I</h1>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: !Ref FirstInstanceName
+
+  SecondEc2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: us-east-2b
+      KeyName: !Ref KeyName
+      ImageId: ami-0ccabb5f82d4c9af5
+      InstanceType: t2.micro
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: 'true'
+          DeviceIndex: '0'
+          GroupSet: 
+            - !Ref InstanceSecurityGroup
+          SubnetId: !Ref SecondInstanceSubnet
+      UserData: !Base64 |
+        #!/bin/bash -ex
+        yum update -y
+        yum install -y httpd
+        systemctl start httpd
+        systemctl enable httpd
+        echo "<h1>Instância II</h1>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: !Ref SecondInstanceName
+  
+  ELBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 15
+      HealthyThresholdCount: 5
+      Matcher:
+        HttpCode: '200'
+      Name: LBTargetGroup
+      Port: 80
+      Protocol: HTTP
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+      Targets:
+        - Id: !Ref FirstEc2
+          Port: 80
+        - Id: !Ref SecondEc2
+          Port: 80
+      UnhealthyThresholdCount: 3
+      VpcId: !Ref LoadBalancerVPC
+
+  LBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ELBTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Ref LoadBalancerName
+      Scheme: internet-facing
+      Subnets:
+        - !Ref FirstInstanceSubnet
+        - !Ref SecondInstanceSubnet
+      SecurityGroups:
+        - !Ref ELBSecurityGroup
+
+Outputs:
+  LoadBalancerRef:
+    Description: Load Balancer reference
+    Value: !Ref ApplicationLoadBalancer
+
+  LoadBalancerUrl:
+    Description: Load Balancer URL
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+
+  StackInstance1:
+    Description: Intance ID
+    Value: !Ref FirstEc2
+
+  StackInstance2:
+    Description: Intance ID
+    Value: !Ref SecondEc2
